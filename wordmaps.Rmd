@@ -1,0 +1,342 @@
+---
+title: "Word maps WWK"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r install and load}
+# Install
+#install.packages("tm")  # for text mining
+#install.packages("SnowballC") # for text stemming
+#install.packages("wordcloud") # word-cloud generator 
+#install.packages("RColorBrewer") # color palettes
+# Load
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+library("RCurl")
+library("XML")
+# devtools::install_github("lchiffon/wordcloud2")
+library("wordcloud2")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r Text Mining}
+text <- readLines(file.choose())
+# Load the data as a corpus
+docs <- Corpus(VectorSource(text))
+inspect(docs)
+```
+
+```{r Text Transformation}
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+```
+```{r Cleaning the Text }
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+# Remove your own stop word
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("and","get","and”,”the”,”our”,”that”,”for”,”are”,”also”,”more”,”has”,”must”,”have”,”should”,”this”,”with","can", "also","like","important","things","will","knowing","worth","think","know","believe","learning","getting","first","every","isnt","just","well","school","want","dont","tie","left","right","something","definitely","really","never","come","still","cool","always","around","doesnt","another","ever","big","case","points","especially")) 
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+# Text stemming
+# docs <- tm_map(docs, stemDocument)
+```
+```{r Term-document Matrix}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+```
+
+```{r Word Cloud}
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+
+
+```{r Frequency}
+# You can have a look at the frequent terms in the term-document matrix as follow. In the example below we want to find words that occur at least four times:
+findFreqTerms(dtm, lowfreq = 4)
+```
+
+```{r Association}
+# You can analyze the association between frequent terms (i.e., terms which correlate) using findAssocs() function. The R code below identifies which words are associated with “knowledge” in the WWK :
+findAssocs(dtm, terms = "defend", corlimit = 0.3)
+```
+
+```{r Frequency Table}
+head(d, 10)
+```
+
+```{r Plot Word Frequencies}
+barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
+```
+```{r Alternatives}
+## 1
+# wordcloud(docs,max.words = 200,random.color = TRUE,random.order=FALSE)
+## 2
+# wordcloud(words = docs, min.freq = 1,
+#          max.words=100, random.order=FALSE, rot.per=0.35, 
+#          colors=brewer.pal(8, "Dark2"))
+## 3 Comparative Clouds
+# https://rpubs.com/brandonkopp/creating-word-clouds-in-r
+```
+
+```{r Alternative Method}
+source('http://www.sthda.com/upload/rquery_wordcloud.r')
+filePath <- "http://www.sthda.com/sthda/RDoc/example-files/martin-luther-king-i-have-a-dream-speech.txt"
+res<-rquery.wordcloud(filePath, type ="file", lang = "english")
+
+#Change the arguments max.words and min.freq to plot more words :
+#max.words : maximum number of words to be plotted.
+#min.freq : words with frequency below min.freq will not be plotted
+res<-rquery.wordcloud(filePath, type ="file", lang = "english",
+                 min.freq = 1,  max.words = 200)
+#Change the color of the word cloud
+#Allowed values for colorPalete :
+#a color name (e.g.: colorPalette = “blue”)
+#a color code (e.g.: colorPalette = “#FF1425”)
+#a name of a color palette taken from RColorBrewer package (e.g.: colorPalette = “Dark2”)
+#Palettes can be found here: https://moderndata.plot.ly/create-colorful-graphs-in-r-with-rcolorbrewer-and-plotly/
+
+#Color palette can be changed as follow :
+# Reds color palette
+#res<-rquery.wordcloud(filePath, type ="file", lang = "english",
+                      colorPalette = "Reds"
+# RdBu color palette
+#res<-rquery.wordcloud(filePath, type ="file", lang = "english",
+                      colorPalette = "RdBu"
+# use unique color
+#res<-rquery.wordcloud(filePath, type ="file", lang = "english",
+                      colorPalette = "black"
+```
+
+
+#++++++++++++++++++++++++++++++++++
+# rquery.wordcloud() : Word cloud generator
+# - http://www.sthda.com
+#+++++++++++++++++++++++++++++++++++
+# x : character string (plain text, web url, txt file path)
+# type : specify whether x is a plain text, a web page url or a file path
+# lang : the language of the text
+# excludeWords : a vector of words to exclude from the text
+# textStemming : reduces words to their root form
+# colorPalette : the name of color palette taken from RColorBrewer package, 
+  # or a color name, or a color code
+# min.freq : words with frequency below min.freq will not be plotted
+# max.words : Maximum number of words to be plotted. least frequent terms dropped
+# value returned by the function : a list(tdm, freqTable)
+rquery.wordcloud <- function(x, type=c("text", "url", "file"), 
+                          lang="english", excludeWords=NULL, 
+                          textStemming=FALSE,  colorPalette="Dark2",
+                          min.freq=3, max.words=200)
+{ 
+  library("tm")
+  library("SnowballC")
+  library("wordcloud")
+  library("RColorBrewer") 
+  
+  if(type[1]=="file") text <- readLines(x)
+  else if(type[1]=="url") text <- html_to_text(x)
+  else if(type[1]=="text") text <- x
+  
+  # Load the text as a corpus
+  docs <- Corpus(VectorSource(text))
+  # Convert the text to lower case
+  docs <- tm_map(docs, content_transformer(tolower))
+  # Remove numbers
+  docs <- tm_map(docs, removeNumbers)
+  # Remove stopwords for the language 
+  docs <- tm_map(docs, removeWords, stopwords(lang))
+  # Remove punctuations
+  docs <- tm_map(docs, removePunctuation)
+  # Eliminate extra white spaces
+  docs <- tm_map(docs, stripWhitespace)
+  # Remove your own stopwords
+  if(!is.null(excludeWords)) 
+    docs <- tm_map(docs, removeWords, excludeWords) 
+  # Text stemming
+  if(textStemming) docs <- tm_map(docs, stemDocument)
+  # Create term-document matrix
+  tdm <- TermDocumentMatrix(docs)
+  m <- as.matrix(tdm)
+  v <- sort(rowSums(m),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  # check the color palette name 
+  if(!colorPalette %in% rownames(brewer.pal.info)) colors = colorPalette
+  else colors = brewer.pal(8, colorPalette) 
+  # Plot the word cloud
+  set.seed(1234)
+  wordcloud(d$word,d$freq, min.freq=min.freq, max.words=max.words,
+            random.order=FALSE, rot.per=0.35, 
+            use.r.layout=FALSE, colors=colors)
+  
+  invisible(list(tdm=tdm, freqTable = d))
+}
+#++++++++++++++++++++++
+# Helper function
+#++++++++++++++++++++++
+# Download and parse webpage
+html_to_text<-function(url){
+  library(RCurl)
+  library(XML)
+  # download html
+  html.doc <- getURL(url)  
+  #convert to plain text
+  doc = htmlParse(html.doc, asText=TRUE)
+ # "//text()" returns all text outside of HTML tags.
+ # We also don’t want text such as style and script codes
+  text <- xpathSApply(doc, "//text()[not(ancestor::script)][not(ancestor::style)][not(ancestor::noscript)][not(ancestor::form)]", xmlValue)
+  # Format text vector into one character string
+  return(paste(text, collapse = " "))
+}
+
+## Word Cloud 2
+Parameters
+data
+A data frame including word and freq in each column
+size
+Font size, default is 1. The larger size means the bigger word.
+fontFamily
+Font to use.
+fontWeight
+Font weight to use, e.g. normal, bold or 600
+color
+color of the text, keyword ‘random-dark’ and ‘random-light’ can be used. color vector is also supported in this param
+minSize
+A character string of the subtitle
+backgroundColor
+Color of the background.
+gridSize
+Size of the grid in pixels for marking the availability of the canvas the larger the grid size, the bigger the gap between words.
+minRotation
+If the word should rotate, the minimum rotation (in rad) the text should rotate.
+maxRotation
+If the word should rotate, the maximum rotation (in rad) the text should rotate. Set the two value equal to keep all text in one angle.
+rotateRatio
+Probability for the word to rotate. Set the number to 1 to always rotate.
+shape
+The shape of the “cloud” to draw. Can be a keyword present. Available presents are ‘circle’ (default), ‘cardioid’ (apple or heart shape curve, the most known polar equation), ‘diamond’ (alias of square), ‘triangle-forward’, ‘triangle’, ‘pentagon’, and ‘star’.
+ellipticity
+degree of “flatness” of the shape wordcloud2.js should draw.
+figPath
+A fig used for the wordcloud.
+widgetsize
+size of the widgets
+
+```{r Word Cloud2 Ex. 1}
+wordcloud2(data = d)
+```
+
+```{r Word Cloud2 Ex. 2 Use color and backgroundcolor}
+wordcloud2(d, color = "random-light", backgroundColor = "grey")
+```
+
+```{r Word Cloud2 Ex. 3 Rotation}
+wordcloud2(d, minRotation = -pi/6, maxRotation = -pi/6, minSize = 10,
+  rotateRatio = 1)
+```
+
+```{r Word Cloud2 Ex. 4 Mask}
+## Not Working Yet
+# Original
+#figPath = system.file("examples/t.png",package = "wordcloud2")
+# wordcloud2(demoFreq, figPath = figPath, size = 1.5,color = "skyblue")
+figPath <-"/home/jhurst/Desktop/leaf.png"
+# figPath = system.file("/home/jhurst/Desktop/leaf.png",package = "wordcloud2")
+# wordcloud2(d, figPath = figPath, size = 1.5,color = "green")
+```
+
+
+
+```{r Word Cloud2 Ex. Letter}
+## Not Working
+letterCloud(d, word = "L", size = 2)
+```
+
+```{r Word Cloud2 Ex. Word}
+## Not Working
+letterCloud(d, word = "TLS", wordSize = 1)
+```
+
+```{r Word Cloud2 Ex. Letter and Word}
+wordcloud2(d,
+           figPath = "/home/jhurst/Desktop/leaf.png",
+           color = "green",
+           backgroundColor = "white")
+letterCloud(d,
+            word = "TLS",
+            color = "green",
+            backgroundColor = "white")
+```
+
+```{r Word Cloud2 Ex. Letter}
+wordcloud2(d,
+           shape = "star",
+           size = .3,
+           color = "green",
+           backgroundColor = "white")
+```
+
+```{r Word Cloud2 Ex. Leaf}
+## WORKING Open in new window
+wordcloud2(d, size=1, color = "green", backgroundColor = "white", figPath = "/home/jhurst/Desktop/leaf.png")
+```
+
+-------------------------------------------------------------------------------------------
+## shiny
+See Example:
+
+if(require(shiny)){
+  library(wordcloud2)
+   # Global variables can go here
+   n <- 1
+
+   # Define the UI
+   ui <- bootstrapPage(
+      numericInput('size', 'Size of wordcloud', n),
+     wordcloud2Output('wordcloud2')
+   )
+
+
+   # Define the server code
+   server <- function(input, output) {
+      output$wordcloud2 <- renderWordcloud2({
+      # wordcloud2(demoFreqC, size=input$size)
+        wordcloud2(demoFreq, size=input$size)
+      })
+   }
+   # Return a Shiny app object
+   # Sys.setlocale("LC_CTYPE","chs") #if you use Chinese character
+   ## Do not Run!
+   shinyApp(ui = ui, server = server)
+   }
